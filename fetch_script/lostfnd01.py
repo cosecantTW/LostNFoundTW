@@ -1,6 +1,8 @@
 import json
 import urllib.request
 from html.parser import HTMLParser
+from firebase import firebase
+firebase = firebase.FirebaseApplication('https://incandescent-heat-2597.firebaseio.com', None)
 alldatas = []
 class MyHTMLParser(HTMLParser):
     def __init__(self):
@@ -28,4 +30,12 @@ for itemname in itemlist:
     parser = MyHTMLParser()
     parser.feed(docStr)
     parser.close()  
-print(json.dumps(alldatas))
+c=0
+for data in alldatas:
+    try:
+        result = firebase.put('/alllostdata', data['serial'], data)
+        c+=1
+        sys.stdout.write(str(c) + ' ' + data['serial'] + ' OK\n')    
+    except:
+        sys.stdout.write(str(c) + ' ' + data['serial'] + ' ERROR\n')
+#print(json.dumps(alldatas))
