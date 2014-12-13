@@ -1,6 +1,8 @@
 import sys
 import json
 import urllib.request
+import logging
+import os
 import http.cookiejar
 import re
 import time
@@ -8,8 +10,13 @@ from datetime import date,timedelta
 from html.parser import HTMLParser
 from firebase import firebase
 from elasticsearch import Elasticsearch
-es = Elasticsearch()
-firebase = firebase.FirebaseApplication('https://incandescent-heat-2597.firebaseio.com', None)
+logging.basicConfig(filename="logs/lf_npa_"+str(int(time.time()))+".log", level=logging.INFO)
+logger = logging.getLogger( 'NPA' )
+es = Elasticsearch([{"host": "localhost", "port": 9277}])
+fb = firebase.FirebaseApplication('https://incandescent-heat-2597.firebaseio.com', None)
+firebase_secret = os.environ['FIREBASE_SECRET']
+firebase_username = 'admin'
+fb.authentication = firebase.FirebaseAuthentication(firebase_secret, firebase_username, admin=True)
 alldatas = []
 class MyHTMLParser(HTMLParser):
     def __init__(self):
@@ -61,7 +68,7 @@ cj = http.cookiejar.CookieJar()
 opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
 opener.addheaders = [('User-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.3 Safari/537.36')]
 today = date.today()
-for diff in range(1,181):
+for diff in range(1,91):
     alldatas = []
     d = today - timedelta(days=diff)
     dstr = str(d.year - 1911) + d.strftime("%m%d")
@@ -74,7 +81,7 @@ for diff in range(1,181):
     try:
         docStr = response.read().decode('MS950')
     except:
-        sys.stdout.write('d ' + dstr + ' p 1 err\n')
+        logger.info('d ' + dstr + ' p 1 err\n')
         docStr = response.read().decode('MS950','ignore')
 #print(docStr)
     parser = MyHTMLParser()
@@ -90,7 +97,7 @@ for diff in range(1,181):
         try:
             docStr = response.read().decode('MS950') 
         except:
-            sys.stdout.write('d ' + dstr + ' p '+str(page)+' err\n')
+            logger.info('d ' + dstr + ' p '+str(page)+' err\n')
             docStr = response.read().decode('MS950','ignore')
         parser = MyHTMLParser()
         parser.feed(docStr)
@@ -99,11 +106,11 @@ for diff in range(1,181):
     for data in alldatas:
         try:
             es.index(index="lfdata", doc_type="data", id=data['serial'], body=data)
-#            result = firebase.put('/alllostdata', data['serial'], data)
+            result = fb.put('/lfdata/NPA/', data['serial'], data)
             c+=1
-            sys.stdout.write(str(c) + ' ' + data['serial'] + ' OK\n')
+            logger.info(str(c) + ' ' + data['serial'] + ' OK\n')
         except:
-            sys.stdout.write(str(c) + ' ' + data['serial'] + ' ERROR\n')
+            logger.info(str(c) + ' ' + data['serial'] + ' ERROR\n')
 
 #print(len(alldatas))
 #print(json.dumps(alldatas, ensure_ascii=False))
