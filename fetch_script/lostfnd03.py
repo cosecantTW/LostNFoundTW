@@ -7,6 +7,8 @@ import time
 from datetime import date,timedelta
 from html.parser import HTMLParser
 from firebase import firebase
+from elasticsearch import Elasticsearch
+es = Elasticsearch()
 firebase = firebase.FirebaseApplication('https://incandescent-heat-2597.firebaseio.com', None)
 alldatas = []
 class MyHTMLParser(HTMLParser):
@@ -42,7 +44,10 @@ class MyHTMLParser(HTMLParser):
                 m = re.search('獲：(.+)，請', self.datas[5])
                 if m:
                     self.datas[5] = m.group(1);
-                alldatas.append(dict({'keeper':self.datas[2],'lostdate':self.datas[3],'objname':self.datas[5],'lostplace':self.datas[4],'serial':'NPA-'+self.datas[1]}))            
+                m = re.search('(\d+)(.+)', self.datas[3])
+                if m:
+                    self.datas[3] = str(int(m.group(1))+1911) + m.group(2) + ':00'
+                alldatas.append(dict({'keeper':self.datas[2],'lostdate':self.datas[3],'objname':self.datas[5],'lostplace':self.datas[4],'serial':'NPA-'+self.datas[1],'fromsite':'NPA'}))            
             self.datas = []
     def handle_data(self, data):
         if self.istd:            
@@ -70,6 +75,7 @@ for diff in range(1,181):
         docStr = response.read().decode('MS950')
     except:
         sys.stdout.write('d ' + dstr + ' p 1 err\n')
+        docStr = response.read().decode('MS950','ignore')
 #print(docStr)
     parser = MyHTMLParser()
     parser.feed(docStr)
@@ -85,13 +91,15 @@ for diff in range(1,181):
             docStr = response.read().decode('MS950') 
         except:
             sys.stdout.write('d ' + dstr + ' p '+str(page)+' err\n')
+            docStr = response.read().decode('MS950','ignore')
         parser = MyHTMLParser()
         parser.feed(docStr)
         parser.close()  
     c = 0;
     for data in alldatas:
         try:
-            result = firebase.put('/alllostdata', data['serial'], data)
+            es.index(index="lfdata", doc_type="data", id=data['serial'], body=data)
+#            result = firebase.put('/alllostdata', data['serial'], data)
             c+=1
             sys.stdout.write(str(c) + ' ' + data['serial'] + ' OK\n')
         except:

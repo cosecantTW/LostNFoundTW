@@ -3,6 +3,8 @@ import json
 import urllib.request
 from html.parser import HTMLParser
 from firebase import firebase
+from elasticsearch import Elasticsearch
+es = Elasticsearch()
 firebase = firebase.FirebaseApplication('https://incandescent-heat-2597.firebaseio.com', None)
 alldatas = []
 class MyHTMLParser(HTMLParser):
@@ -29,7 +31,7 @@ class MyHTMLParser(HTMLParser):
         if tag == 'tr' and not self.isget:             
             if len(self.datas) == 11 and self.datas[1] != '':
                 #print(str(len(self.datas))+' '+self.datas[1])   
-                alldatas.append(dict({'serial2':self.datas[2],'objtype':self.datas[5],'keeper':self.datas[7],'contactphone':self.datas[9],'lostdate':self.datas[3],'objname':self.datas[6],'lostplace':'臺鐵-'+self.datas[4],'serial':'TRA-'+self.datas[1]}))            
+                alldatas.append(dict({'serial2':self.datas[2],'objtype':self.datas[5],'keeper':self.datas[7],'contactphone':self.datas[9],'lostdate':self.datas[3],'objname':self.datas[6],'lostplace':'臺鐵-'+self.datas[4],'serial':'TRA-'+self.datas[1],'fromsite':'TRA'}))            
             self.datas = []
     def handle_data(self, data):
         if self.istd:            
@@ -62,13 +64,15 @@ for page in range(1,pagecount+1):
     parser = MyHTMLParser(False)
     parser.feed(docStr)
     parser.close()  
-c = 0;
-for data in alldatas:
-    try:
-        result = firebase.put('/alllostdata', data['serial'], data)
-        c+=1
-        sys.stdout.write(str(c) + ' ' + data['serial'] + ' OK\n')
-    except:
-        sys.stdout.write(str(c) + ' ' + data['serial'] + ' ERROR\n')
+    c = 0;
+    for data in alldatas:
+        try:
+            es.index(index="lfdata", doc_type="data", id=data['serial'], body=data)
+#        result = firebase.put('/alllostdata', data['serial'], data)
+            c+=1
+            sys.stdout.write(str(c) + ' ' + data['serial'] + ' OK\n')
+        except:
+            sys.stdout.write(str(c) + ' ' + data['serial'] + ' ERROR\n')
+    alldatas = []
 #print(json.dumps(alldatas))
 # 

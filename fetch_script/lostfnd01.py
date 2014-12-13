@@ -1,8 +1,19 @@
+import sys
 import json
 import urllib.request
+import logging
+import time
+import os
 from html.parser import HTMLParser
 from firebase import firebase
-firebase = firebase.FirebaseApplication('https://incandescent-heat-2597.firebaseio.com', None)
+from elasticsearch import Elasticsearch
+es = Elasticsearch([{"host": "localhost", "port": 9277}])
+logging.basicConfig(filename="logs/lf_trtc_"+str(int(time.time()))+".log", level=logging.INFO)
+logger = logging.getLogger( 'TRTC' )
+fb = firebase.FirebaseApplication('https://incandescent-heat-2597.firebaseio.com', None)
+firebase_secret = os.environ['FIREBASE_SECRET']
+firebase_username = 'admin'
+fb.authentication = firebase.FirebaseAuthentication(firebase_secret, firebase_username, admin=True)
 alldatas = []
 class MyHTMLParser(HTMLParser):
     def __init__(self):
@@ -15,7 +26,7 @@ class MyHTMLParser(HTMLParser):
     def handle_endtag(self, tag):
         if tag == 'tr':            
             if len(self.datas) == 4 and self.datas[0] != '':
-                alldatas.append(dict({'lostdate':self.datas[0],'objname':self.datas[1],'lostplace':'北捷-'+self.datas[2],'serial':'TRTC-'+self.datas[3]}))            
+                alldatas.append(dict({'lostdate':self.datas[0],'objname':self.datas[1],'lostplace':('北捷-'+self.datas[2]),'serial':('TRTC-'+self.datas[3]),'objtype':self.objtype,'fromsite':'TRTC'}))            
             self.datas = []
     def handle_data(self, data):
         if self.istd:
@@ -28,14 +39,16 @@ for itemname in itemlist:
     response = urllib.request.urlopen(req)
     docStr = response.read().decode('utf8') 
     parser = MyHTMLParser()
+    parser.objtype = itemname
     parser.feed(docStr)
     parser.close()  
 c=0
 for data in alldatas:
     try:
-        result = firebase.put('/alllostdata', data['serial'], data)
+        es.index(index="lfdata", doc_type="data", id=data['serial'], body={'lostdate':data['lostdate'],'objname':data['objname'],'lostplace':data['lostplace'],'serial':data['serial'],'objtype':data['objtype'],'fromsite':'TRTC'})
+        result = fb.put('/lfdata/TRTC/' , data['serial'], data)
         c+=1
-        sys.stdout.write(str(c) + ' ' + data['serial'] + ' OK\n')    
+        logger.info(str(c) + ' ' + data['serial'] + ' OK')    
     except:
-        sys.stdout.write(str(c) + ' ' + data['serial'] + ' ERROR\n')
+        logger.info(str(c) + ' ' + data['serial'] + ' ERROR')
 #print(json.dumps(alldatas))
