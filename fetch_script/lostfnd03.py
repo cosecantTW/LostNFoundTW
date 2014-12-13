@@ -88,7 +88,7 @@ for diff in range(1,91):
     parser.feed(docStr)
     pagecount = parser.pagecount
     parser.close()  
-    print(dstr + ': ' + str(pagecount))
+    logger.info(dstr + ': ' + str(pagecount))
     for page in range(2,pagecount+1):
         pageurl = "http://eli.npa.gov.tw/NPA97-217Client/oP01A01Q_01Action.do?d-3657963-p="+ str(page) +"&method=doQuery"
         req = urllib.request.Request(pageurl)  
