@@ -68,7 +68,7 @@ cj = http.cookiejar.CookieJar()
 opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
 opener.addheaders = [('User-agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.3 Safari/537.36')]
 today = date.today()
-for diff in range(1,91):
+for diff in range(1,31):
     alldatas = []
     d = today - timedelta(days=diff)
     dstr = str(d.year - 1911) + d.strftime("%m%d")
